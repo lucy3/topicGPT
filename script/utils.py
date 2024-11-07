@@ -21,17 +21,17 @@ PERPLEXITY_API_KEY = ""
 
 
 @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
-def api_call(prompt, deployment_name, temperature, max_tokens, top_p):
+def api_call(prompt, deployment_name, temperature, max_tokens, top_p, pipeline):
     """
     Call API (OpenAI, Azure, Perplexity) and return response
     - prompt: prompt template
-    - deployment_name: name of the deployment to use (e.g. gpt-4, gpt-3.5-turbo, etc.)
+    - deployment_name: name of the deployment to use (e.g. gpt-4o-mini, etc.)
     - temperature: temperature parameter
     - max_tokens: max tokens parameter
     - top_p: top p parameter
     """
     time.sleep(5)  # Change to avoid rate limit
-    if deployment_name in ["gpt-35-turbo", "gpt-4", "gpt-3.5-turbo"]:
+    if deployment_name in ["gpt-4o-mini"]:
         response = client.chat.completions.create(
             model=deployment_name,
             temperature=float(temperature),
@@ -43,35 +43,27 @@ def api_call(prompt, deployment_name, temperature, max_tokens, top_p):
             ],
         )
         return response.choices[0].message.content
-    elif deployment_name in [
-        "llama-2-70b-chat",
-        "codellama-34b-instruct",
-        "mistral-7b-instruct",
-    ]:
-        payload = {
-            "model": deployment_name,
-            "temperature": float(temperature),
-            "max_tokens": int(max_tokens),
-            "top_p": float(top_p),
-            "request_timeout": 1000,
-            "messages": [
-                {"role": "system", "content": ""},
-                {"role": "user", "content": prompt},
-            ],
-        }
-        headers = {
-            "accept": "application/json",
-            "content-type": "application/json",
-            "authorization": PERPLEXITY_API_KEY,
-        }
-        response = requests.post(
-            "https://api.perplexity.ai/chat/completions", json=payload, headers=headers
+    elif deployment_name in ['Phi-3.5-mini', 'Llama-3.1-8B']:
+        assert pipeline
+
+        messages = [
+            {"role": "system", "content": ""},
+            {"role": "user", "content": prompt},
+        ]
+        
+        outputs = pipeline(
+            messages,
+            max_new_tokens=int(max_tokens),
+            temperature=float(temperature),
+            top_p=float(top_p),
         )
-        if response.status_code != 200:
-            print(response.status_code)
-            print(response.text)
-            raise Exception("Error in perplexity API call")
-        return response.json()["choices"][0]["message"]["content"]
+
+        if deployment_name == 'Llama-3.1-8B':
+            text = outputs[0]["generated_text"][-1]['content']
+        if deployment_name == 'Phi-3.5-mini': 
+            text = output[0]['generated_text']
+
+        return text
     else:
         print("Invalid deployment name. Please try again.")
 
@@ -95,18 +87,6 @@ def num_tokens_from_messages(messages, model):
             encoding = tiktoken.encoding_for_model(model)
         except KeyError:
             encoding = tiktoken.get_encoding("cl100k_base")
-        if model in ["gpt-35-turbo", "gpt-4", "gpt4-32k", "gpt-3.5-turbo"]:
-            tokens_per_message = 3
-            tokens_per_name = 1
-        elif model == "gpt-3.5-turbo-0301":
-            tokens_per_message = (
-                4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
-            )
-            tokens_per_name = -1  # if there's a name, the role is omitted
-        else:
-            raise NotImplementedError(
-                f"""num_tokens_from_messages() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens."""
-            )
         num_tokens = 0
         num_tokens += len(encoding.encode(messages))
         num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>

@@ -53,7 +53,7 @@ def generate_topics(
     - topics_node: current node of the topic tree
     - gen_prompt: generation prompt
     - context_len: length of the context
-    - deployment_name: model to run topic generation with ('gpt-4', 'gpt-35-turbo', 'mistral-7b-instruct)
+    - deployment_name: model to run topic generation with ('Phi-3.5-mini', 'Llama-3.1-8B', 'gpt-4o-mini')
     - max_tokens: max tokens to generate
     - temperature: temperature for generation
     - top_p: top-p for generation
@@ -188,7 +188,7 @@ def main():
     parser.add_argument(
         "--deployment_name",
         type=str,
-        help="model to run topic generation with ('gpt-4', 'gpt-35-turbo', 'mistral-7b-instruct)",
+        help="model to run topic generation with ('Phi-3.5-mini', 'Llama-3.1-8B', 'gpt-4o-mini')",
     )
     parser.add_argument(
         "--max_tokens", type=int, default=500, help="max tokens to generate"
@@ -239,11 +239,7 @@ def main():
         args.temperature,
         args.top_p,
     )
-    context = 4096
-    if deployment_name == "gpt-35-turbo":
-        deployment_name = "gpt-3.5-turbo"
-    if deployment_name == "gpt-4":
-        context = 8000
+    context = 128000
     context_len = context - max_tokens
 
     # Load data ----

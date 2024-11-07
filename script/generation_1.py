@@ -2,7 +2,10 @@ import pandas as pd
 from utils import *
 from tqdm import tqdm
 import regex
+import torch
 import traceback
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import transformers
 from sentence_transformers import SentenceTransformer, util
 import argparse
 import os
@@ -24,7 +27,7 @@ def prompt_formatting(
     Format prompt to include document and seed topics
     Handle cases where prompt is too long
     - generation_prompt: Prompt for topic generation
-    - deployment_name: Model to run generation with ('gpt-4', 'gpt-35-turbo', 'mistral-7b-instruct')
+    - deployment_name: Model to run generation with ('Phi-3.5-mini', 'Llama-3.1-8B', 'gpt-4o-mini')
     - doc: Document to include in prompt
     - seed_file: File to read seed topics from
     - topics_list: List of topics generated from previous iteration
@@ -81,6 +84,31 @@ def prompt_formatting(
         prompt = generation_prompt.format(Document=doc, Topics=topic_str)
     return prompt
 
+def get_local_pipelines(deployment_name): 
+    if deployment_name == 'Llama-3.1-8B': 
+        model_id = "/data/models/llama3.1/models--meta-llama--Meta-Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659"
+        model_kwargs = {'torch_dtype': torch.bfloat16}
+        pipeline = transformers.pipeline(
+            "text-generation",
+            model=model_id,
+            model_kwargs=model_kwargs,
+            device_map="auto",
+        )
+    
+    if deployment_name == 'Phi-3.5-mini': 
+        model_id = "/data/models/phi/models--microsoft--Phi-3.5-mini-instruct/snapshots/af0dfb8029e8a74545d0736d30cb6b58d2f0f3f0"
+        model_kwargs = {'torch_dtype': "auto", 'attn_implementation': 'flash_attention_2'}
+        pipeline = transformers.pipeline(
+            "text-generation",
+            model=model_id,
+            model_kwargs=model_kwargs,
+            device_map="auto",
+        )
+
+    if deployment_name == 'gpt-4o-mini': 
+        pipeline = None
+        
+    return pipeline
 
 def generate_topics(
     topics_root,
@@ -102,7 +130,7 @@ def generate_topics(
     - context_len: Max length of prompt
     - docs: List of documents to generate topics from
     - seed_file: File to read seed topics from
-    - deployment_name: Model to run generation with ('gpt-4', 'gpt-35-turbo', 'mistral-7b-instruct)
+    - deployment_name: Model to run generation with ('Phi-3.5-mini', 'Llama-3.1-8B', 'gpt-4o-mini')
     - generation_prompt: Prompt to generate topics with
     - verbose: Whether to print out results
     - early_stop: Threshold for topic drought (Modify if necessary)
@@ -111,6 +139,8 @@ def generate_topics(
     responses = []
     running_dups = 0
     topic_format = regex.compile("^\[(\d+)\] ([\w\s]+):(.+)")
+
+    pipeline = get_local_pipelines(deployment_name)
 
     for i, doc in enumerate(tqdm(docs)):
         prompt = prompt_formatting(
@@ -123,7 +153,7 @@ def generate_topics(
             verbose,
         )
         try:
-            response = api_call(prompt, deployment_name, temperature, max_tokens, top_p)
+            response = api_call(prompt, deployment_name, temperature, max_tokens, top_p, pipeline=pipeline)
             topics = response.split("\n")
             for t in topics:
                 t = t.strip()
@@ -172,7 +202,7 @@ def main():
     parser.add_argument(
         "--deployment_name",
         type=str,
-        help="model to run topic generation with ('gpt-4', 'gpt-35-turbo', 'mistral-7b-instruct)",
+        help="model to run topic generation with ('Phi-3.5-mini', 'Llama-3.1-8B', 'gpt-4o-mini')",
     )
     parser.add_argument(
         "--max_tokens", type=int, default=500, help="max tokens to generate"
@@ -223,11 +253,7 @@ def main():
         args.temperature,
         args.top_p,
     )
-    context = 4096
-    if deployment_name == "gpt-35-turbo":
-        deployment_name = "gpt-3.5-turbo"
-    if deployment_name == "gpt-4":
-        context = 8000
+    context = 128000
     context_len = context - max_tokens
 
     # Load data ----

@@ -90,7 +90,7 @@ def correct_topics(
     - docs: List of documents for correction
     - errors: List of indices of documents with errors
     - correction_prompt: Prompt to assign topics with
-    - deployment_name: Model to run correction with ('gpt-4', 'gpt-35-turbo', 'mistral-7b-instruct)
+    - deployment_name: Model to run correction with ('Phi-3.5-mini', 'Llama-3.1-8B', 'gpt-4o-mini')
     - context_len: Max length of prompt
     - temperature: Temperature for generation
     - top_p: Top-p for generation
@@ -161,7 +161,7 @@ def main():
     parser.add_argument(
         "--deployment_name",
         type=str,
-        help="model to run topic generation with ('gpt-4', 'gpt-3.5-turbo', 'mistral-7b-instruct)",
+        help="model to run topic generation with ('Phi-3.5-mini', 'Llama-3.1-8B', 'gpt-4o-mini')",
     )
     parser.add_argument(
         "--max_tokens", type=int, default=500, help="max tokens to generate"
@@ -207,11 +207,7 @@ def main():
         args.temperature,
         args.top_p,
     )
-    context = 4096
-    if deployment_name == "gpt-35-turbo":
-        deployment_name = "gpt-3.5-turbo"
-    if deployment_name == "gpt-4":
-        context = 8000
+    context = 128000
     context_len = context - max_tokens
 
     # Load data ----

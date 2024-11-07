@@ -96,7 +96,7 @@ def merge_topics(
             print(refiner_input)
 
         try:
-            input_len = num_tokens_from_messages(refiner_input, "gpt-4")
+            input_len = num_tokens_from_messages(refiner_input, deployment_name)
             response = api_call(
                 refiner_prompt, deployment_name, temperature, max_tokens, top_p
             )
@@ -197,7 +197,7 @@ def main():
     parser.add_argument(
         "--deployment_name",
         type=str,
-        help="model ('gpt-4', 'gpt-35-turbo', 'mistral-7b-instruct)",
+        help="model ('Phi-3.5-mini', 'Llama-3.1-8B', 'gpt-4o-mini')",
     )
     parser.add_argument(
         "--max_tokens", type=int, default=500, help="max tokens to generate"
