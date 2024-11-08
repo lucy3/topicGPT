@@ -9,6 +9,7 @@ import transformers
 from sentence_transformers import SentenceTransformer, util
 import argparse
 import os
+from io import StringIO
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -84,32 +85,6 @@ def prompt_formatting(
         prompt = generation_prompt.format(Document=doc, Topics=topic_str)
     return prompt
 
-def get_local_pipelines(deployment_name): 
-    if deployment_name == 'Llama-3.1-8B': 
-        model_id = "/data/models/llama3.1/models--meta-llama--Meta-Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659"
-        model_kwargs = {'torch_dtype': torch.bfloat16}
-        pipeline = transformers.pipeline(
-            "text-generation",
-            model=model_id,
-            model_kwargs=model_kwargs,
-            device_map="auto",
-        )
-    
-    if deployment_name == 'Phi-3.5-mini': 
-        model_id = "/data/models/phi/models--microsoft--Phi-3.5-mini-instruct/snapshots/af0dfb8029e8a74545d0736d30cb6b58d2f0f3f0"
-        model_kwargs = {'torch_dtype': "auto", 'attn_implementation': 'flash_attention_2'}
-        pipeline = transformers.pipeline(
-            "text-generation",
-            model=model_id,
-            model_kwargs=model_kwargs,
-            device_map="auto",
-        )
-
-    if deployment_name == 'gpt-4o-mini': 
-        pipeline = None
-        
-    return pipeline
-
 def generate_topics(
     topics_root,
     topics_list,
@@ -138,7 +113,7 @@ def generate_topics(
     top_emb = {}
     responses = []
     running_dups = 0
-    topic_format = regex.compile("^\[(\d+)\] ([\w\s]+):(.+)")
+    topic_format = regex.compile(r"^([\w\s]+):(.+)")
 
     pipeline = get_local_pipelines(deployment_name)
 
@@ -159,40 +134,39 @@ def generate_topics(
                 t = t.strip()
                 if regex.match(topic_format, t):
                     groups = regex.match(topic_format, t)
-                    lvl, name, desc = (
-                        int(groups[1]),
+                    name, desc = (
+                        groups[1].strip(),
                         groups[2].strip(),
-                        groups[3].strip(),
                     )
-                    if lvl == 1:
-                        dups = [s for s in topics_root.descendants if s.name == name]
-                        if len(dups) > 0:  # Update count if topic already exists
-                            dups[0].count += 1
-                            running_dups += 1
-                            if running_dups > early_stop:
-                                return responses, topics_list, topics_root
-                        else:  # Add new topic if topic doesn't exist
-                            new_node = Node(
-                                name=name,
-                                parent=topics_root,
-                                lvl=lvl,
-                                count=1,
-                                desc=desc,
-                            )
-                            topics_list.append(f"[{new_node.lvl}] {new_node.name}")
-                            running_dups = 0
-                    else:
-                        if verbose:
-                            print("Lower-level topics detected. Skipping...")
+                    lvl = 1
+                    dups = [s for s in topics_root.descendants if s.name == name]
+                    if len(dups) > 0:  # Update count if topic already exists
+                        dups[0].count += 1
+                        running_dups += 1
+                        if running_dups > early_stop:
+                            return responses, topics_list, topics_root
+                    else:  # Add new topic if topic doesn't exist
+                        new_node = Node(
+                            name=name,
+                            parent=topics_root,
+                            lvl=lvl,
+                            count=1,
+                            desc=desc,
+                        )
+                        topics_list.append(f"{new_node.name}")
+                        running_dups = 0
             if verbose:
                 print(f"Document: {i+1}")
-                print(f"Topics: {response}")
+                print(f"Topics: {topics_list}")
+                print(f"Num Topics: " + str(len(topics_list)))
+                print(f"Response: {response}")
                 print("--------------------")
             responses.append(response)
 
         except Exception as e:
             traceback.print_exc()
             responses.append("Error")
+            # break # TODO: delete after testing
 
     return responses, topics_list, topics_root
 
@@ -257,7 +231,7 @@ def main():
     context_len = context - max_tokens
 
     # Load data ----
-    df = pd.read_json(str(args.data), lines=True)
+    df = pd.read_json(path_or_buf=args.data, lines=True)
     docs = df["text"].tolist()
     generation_prompt = open(args.prompt_file, "r").read()
     topics_root, topics_list = generate_tree(read_seed(args.seed_file))

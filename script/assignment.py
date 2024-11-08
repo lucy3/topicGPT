@@ -5,6 +5,7 @@ import numpy as np
 from tqdm import trange
 import traceback
 import random
+import json
 from sentence_transformers import SentenceTransformer, util
 import argparse
 import os
@@ -19,7 +20,7 @@ def tree_formatting(topics_root):
     """
     tree_str = ""
     for node in topics_root.descendants:
-        tree_str += "\t" * (node.lvl - 1) + f"""[{node.lvl}] {node.name}\n"""
+        tree_str += f"""{node.name}\n"""
     branch_str = branch_to_str(topics_root)
     tree_str = "\n".join(branch_str)
     return tree_str, branch_str
@@ -28,6 +29,7 @@ def tree_formatting(topics_root):
 def assign_topics(
     topics_root,
     docs,
+    doc_ids, 
     assignment_prompt,
     deployment_name,
     context_len,
@@ -35,6 +37,7 @@ def assign_topics(
     top_p,
     max_tokens,
     verbose,
+    outfile,
     max_top_len=1700,
 ):
     """
@@ -54,60 +57,76 @@ def assign_topics(
     tree_str, branch_str = tree_formatting(topics_root)
     prompted_docs, res = [], []
 
-    for i in trange(len(docs)):
-        doc = docs[i]
-        cos_sim = {}
-        doc_emb = sbert.encode(doc, convert_to_tensor=True)
+    pipeline = get_local_pipelines(deployment_name)
 
-        # Include only most relevant topics such that the total length
-        # of tree_str is less than max_top_len
-        if num_tokens_from_messages(tree_str, deployment_name) > max_top_len:
-            for top in branch_str:
-                top_emb = sbert.encode(top, convert_to_tensor=True)
-                cos_sim[top] = util.cos_sim(top_emb, doc_emb)
-            top_top = sorted(cos_sim, key=cos_sim.get, reverse=True)
+    with open(outfile.replace('.jsonl', '_temp.jsonl'), 'a') as outfile: # backup in case things crash midway
+        for i in trange(len(docs)):
+            d = {}
 
-            seed_len = 0
-            seed_str = ""
-            while seed_len < max_top_len and len(top_top) > 0:
-                new_seed = top_top.pop(0)
-                if (
-                    seed_len
-                    + num_tokens_from_messages(new_seed + "\n", deployment_name)
-                    > max_top_len
-                ):
-                    break
-                else:
-                    seed_str += new_seed + "\n"
-                    seed_len += num_tokens_from_messages(seed_str, deployment_name)
-        else:
-            seed_str = tree_str
-
-        # Truncate document if too long
-        max_doc_len = (
-            context_len
-            - num_tokens_from_messages(assignment_prompt, deployment_name)
-            - num_tokens_from_messages(seed_str, deployment_name)
-        )
-        if num_tokens_from_messages(doc, deployment_name) > max_doc_len:
-            print(
-                f"Truncating document from {num_tokens_from_messages(doc, deployment_name)} to {max_doc_len}"
+            doc = docs[i]
+            d['text'] = doc
+            d['id'] = doc_ids[i]
+            cos_sim = {}
+            doc_emb = sbert.encode(doc, convert_to_tensor=True)
+    
+            # Include only most relevant topics such that the total length
+            # of tree_str is less than max_top_len
+            if num_tokens_from_messages(tree_str, deployment_name) > max_top_len:
+                for top in branch_str:
+                    top_emb = sbert.encode(top, convert_to_tensor=True)
+                    cos_sim[top] = util.cos_sim(top_emb, doc_emb)
+                top_top = sorted(cos_sim, key=cos_sim.get, reverse=True)
+    
+                seed_len = 0
+                seed_str = ""
+                while seed_len < max_top_len and len(top_top) > 0:
+                    new_seed = top_top.pop(0)
+                    if (
+                        seed_len
+                        + num_tokens_from_messages(new_seed + "\n", deployment_name)
+                        > max_top_len
+                    ):
+                        break
+                    else:
+                        seed_str += new_seed + "\n"
+                        seed_len += num_tokens_from_messages(seed_str, deployment_name)
+            else:
+                seed_str = tree_str
+    
+            # Truncate document if too long
+            max_doc_len = (
+                context_len
+                - num_tokens_from_messages(assignment_prompt, deployment_name)
+                - num_tokens_from_messages(seed_str, deployment_name)
             )
-            doc = truncating(doc, deployment_name, max_doc_len)
+            if num_tokens_from_messages(doc, deployment_name) > max_doc_len:
+                print(
+                    f"Truncating document from {num_tokens_from_messages(doc, deployment_name)} to {max_doc_len}"
+                )
+                doc = truncating(doc, deployment_name, max_doc_len)
+    
+            try:
+                prompt = assignment_prompt.format(Document=doc, tree=seed_str)
+                result = api_call(prompt, deployment_name, temperature, max_tokens, top_p, pipeline=pipeline)
+                if verbose:
+                    print(f"Document: {i+1}")
+                    print(f"Response: {result}")
+                    print("--------------------")
+                res.append(result)
+                d['responses'] = result
+            
+            except Exception as e:
+                result = "Error"
+                res.append("Error")
+                d['responses'] = result
+                traceback.print_exc()
 
-        try:
-            prompt = assignment_prompt.format(Document=doc, tree=seed_str)
-            result = api_call(prompt, deployment_name, temperature, max_tokens, top_p)
-            if verbose:
-                print(f"Document: {i+1}")
-                print(f"Response: {result}")
-                print("--------------------")
-            res.append(result)
-        except Exception as e:
-            result = "Error"
-            res.append("Error")
-            traceback.print_exc()
-        prompted_docs.append(doc)
+            prompted_docs.append(doc)
+            d['prompted_docs'] = doc
+            
+            outfile.write(json.dumps(d) + '\n')
+            if (i + 1) % 10 == 0: 
+                outfile.flush()
     return res, prompted_docs
 
 
@@ -168,6 +187,7 @@ def main():
     # Load data ----
     df = pd.read_json(args.data, lines=True)
     docs = df["text"].tolist()
+    doc_ids = df["id"].tolist()
     assignment_prompt = open(args.prompt_file, "r").read()
     topics_root, _ = generate_tree(read_seed(args.topic_file))
 
@@ -175,6 +195,7 @@ def main():
     responses, prompted_docs = assign_topics(
         topics_root,
         docs,
+        doc_ids, 
         assignment_prompt,
         deployment_name,
         context_len,
@@ -182,6 +203,7 @@ def main():
         top_p,
         max_tokens,
         args.verbose,
+        args.out_file,
     )
 
     # Writing results ----
@@ -191,7 +213,7 @@ def main():
         df.to_json(args.out_file, lines=True, orient="records")
     except Exception as e:
         traceback.print_exc()
-        with open(f"data/output/assignment_backup_{deployment_name}.txt", "w") as f:
+        with open(f"../data/output/assignment_backup_{deployment_name}.txt", "w") as f:
             for line in responses:
                 print(line, file=f)
 

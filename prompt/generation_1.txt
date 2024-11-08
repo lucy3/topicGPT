@@ -1,37 +1,37 @@
-You will receive a document and a set of top-level topics from a topic hierarchy. Your task is to identify generalizable topics within the document that can act as top-level topics in the hierarchy. If any relevant topics are missing from the provided set, please add them. Otherwise, output the existing top-level topics as identified in the document.
+You will receive a document and a set of topics. Your task is to identify a generalizable topic within the document. If this topic is missing from the provided set, please add it. Otherwise, output an existing topic as identified in the document.
 
-[Top-level topics]
+[Topics]
 {Topics}
 
 [Examples]
-Example 1: Adding "[1] Agriculture"
+Example 1: Adding "Religion"
 Document: 
-Saving Essential American Sailors Act or SEAS Act - Amends the Moving Ahead for Progress in the 21st Century Act (MAP-21) to repeal the Act's repeal of the agricultural export requirements that: (1) 25% of the gross tonnage of certain agricultural commodities or their products exported each fiscal year be transported on U.S. commercial vessels, and (2) the Secretary of Transportation (DOT) finance any increased ocean freight charges incurred in the transportation of such items. Revives and reinstates those repealed requirements to read as if they were never repealed.
+But a religion true to its nature must also be concerned about man’s social conditions. Religion deals with both earth and heaven, both time and eternity. Religion operates not only on the vertical plane but also on the horizontal. It seeks not only to integrate men with God but to integrate men with men and each man with himself. This means, at bottom, that the Christian gospel is a two-way road. On the one hand it seeks to change the souls of men, and thereby unite them with God; on the other hand it seeks to change the environmental conditions of men so that the soul will have a chance after it is changed. Any religion that professes to be concerned with the souls of men and is not concerned with the slums that damn them, the economic conditions that strangle them, and the social conditions that cripple them is a dry-as-dust religion. Such a religion is the kind the Marxists like to see—an opiate of the people.
 
 Your response: 
-[1] Agriculture: Mentions policies relating to agricultural practices and products.
+Religion: Describes purposes and roles of religion for people. 
 
-Example 2: Duplicate "[1] Trade", returning the existing topic
+Example 2: Respond with an existing topic, "Love"
 Document: 
-Amends the Harmonized Tariff Schedule of the United States to suspend temporarily the duty on mixtures containing Fluopyram.
+“I have reason to think,” he replied, “that Harriet Smith will soon have an offer of marriage, and from a most unexceptionable quarter:--Robert Martin is the man. Her visit to Abbey-Mill, this summer, seems to have done his business. He is desperately in love and means to marry her.”
+
+“He is very obliging,” said Emma; “but is he sure that Harriet means to marry him?”
 
 Your response: 
-[1] Trade: Mentions the exchange of capital, goods, and services.
+Love: Discusses romantic relationships, such as marriage.
 
 [Instructions]
-Step 1: Determine topics mentioned in the document. 
-- The topic labels must be as GENERALIZABLE as possible. They must not be document-specific.
-- The topics must reflect a SINGLE topic instead of a combination of topics.
-- The new topics must have a level number, a short general label, and a topic description. 
-- The topics must be broad enough to accommodate future subtopics. 
+Step 1: Determine the topic mentioned in the document. 
+- The topic label must be as GENERALIZABLE as possible. It must not be document-specific.
+- The topic must reflect a SINGLE topic instead of a combination of topics.
+- A new topic must have a short general label and a topic description.  
 Step 2: Perform ONE of the following operations: 
-1. If there are already duplicates or relevant topics in the hierarchy, output those topics and stop here. 
+1. If there are already a duplicate or relevant topic in the provided set of topics, output that topic and stop here. 
 2. If the document contains no topic, return "None". 
-3. Otherwise, add your topic as a top-level topic. Stop here and output the added topic(s). DO NOT add any additional levels.
-
+3. Otherwise, add a new topic to the set of topics. 
 
 [Document]
 {Document}
 
-Please ONLY return the relevant or modified topics at the top level in the hierarchy.
+Your response should ONLY contain a topic, written in the format "[Topic label]: [your reasoning]". 
 [Your response]

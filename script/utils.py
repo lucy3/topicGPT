@@ -5,7 +5,10 @@ import datetime
 import pytz
 import configparser
 import regex
+import torch
 import pandas as pd
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import transformers
 from anytree import Node, RenderTree
 import tiktoken
 from itertools import islice
@@ -13,14 +16,39 @@ import requests
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 from openai import OpenAI
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+client = OpenAI(api_key="")
 from sklearn import metrics
 
 # Add perplexity API key to the environment variable & load it here.
 PERPLEXITY_API_KEY = ""
 
+def get_local_pipelines(deployment_name): 
+    if deployment_name == 'Llama-3.1-8B': 
+        model_id = "/data/models/llama3.1/models--meta-llama--Meta-Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659"
+        model_kwargs = {'torch_dtype': torch.bfloat16}
+        pipeline = transformers.pipeline(
+            "text-generation",
+            model=model_id,
+            model_kwargs=model_kwargs,
+            device_map="auto",
+        )
+    
+    if deployment_name == 'Phi-3.5-mini': 
+        model_id = "/data/models/phi/models--microsoft--Phi-3.5-mini-instruct/snapshots/af0dfb8029e8a74545d0736d30cb6b58d2f0f3f0"
+        model_kwargs = {'torch_dtype': "auto", 'attn_implementation': 'flash_attention_2'}
+        pipeline = transformers.pipeline(
+            "text-generation",
+            model=model_id,
+            model_kwargs=model_kwargs,
+            device_map="auto",
+        )
 
-@retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
+    if deployment_name == 'gpt-4o-mini': 
+        pipeline = None
+        
+    return pipeline
+
+# @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
 def api_call(prompt, deployment_name, temperature, max_tokens, top_p, pipeline):
     """
     Call API (OpenAI, Azure, Perplexity) and return response
@@ -50,14 +78,20 @@ def api_call(prompt, deployment_name, temperature, max_tokens, top_p, pipeline):
             {"role": "system", "content": ""},
             {"role": "user", "content": prompt},
         ]
-        
-        outputs = pipeline(
-            messages,
-            max_new_tokens=int(max_tokens),
-            temperature=float(temperature),
-            top_p=float(top_p),
-        )
-
+        if temperature == 0: 
+            outputs = pipeline(
+                messages,
+                max_new_tokens=int(max_tokens),
+                do_sample=False,
+            )
+        else: 
+            outputs = pipeline(
+                messages,
+                max_new_tokens=int(max_tokens),
+                temperature=float(temperature), 
+                top_p=float(top_p),
+            )
+            
         if deployment_name == 'Llama-3.1-8B':
             text = outputs[0]["generated_text"][-1]['content']
         if deployment_name == 'Phi-3.5-mini': 
@@ -118,7 +152,7 @@ def generate_tree(topic_list):
     root = Node(name="Topics", parent=None, lvl=0, count=1)
     prev_node = root
     node_list = []
-    pattern = regex.compile("^\[(\d+)\] (.+) \(Count: (\d+)\):(.+)?")
+    pattern = regex.compile(r"^\[(\d+)\] (.+) \(Count: (\d+)\):(.+)?")
     lvl, label, count, desc = 0, "", 0, ""
 
     for topic in topic_list:
@@ -200,7 +234,7 @@ def read_seed(seed_file):
     Construct topic list from seed file (.md format)
     """
     topics = []
-    pattern = regex.compile("^\[(\d+)\] ([\w\s]+) \(Count: (\d+)\): (.+)")
+    pattern = regex.compile(r"^\[(\d+)\] ([\w\s]+) \(Count: (\d+)\): (.+)")
     hierarchy = open(seed_file, "r").readlines()
     for res in hierarchy:
         res = res.strip().split("\n")
@@ -249,7 +283,7 @@ def tree_addition(root, node_list, top_gen):
     """
     prev_node = root
     prev_lvl = 0
-    pattern = regex.compile("^\[(\d+)\] (.+) \(Count: (\d+)\):(.+)?")
+    pattern = regex.compile(r"^\[(\d+)\] (.+) \(Count: (\d+)\):(.+)?")
 
     for i in range(len(top_gen)):
         patterns = regex.match(pattern, top_gen[i].strip())
@@ -335,8 +369,8 @@ def branch_to_str(root):
     for _, _, node in RenderTree(root):
         if node.lvl == 1:
             branch = []
-            branch.append(f"[{node.lvl}] {node.name}")
-            branch += [f"\t[{n.lvl}] {n.name}" for n in node.descendants]
+            branch.append(f"{node.name}")
+            branch += [f"\t{n.name}" for n in node.descendants]
             branch_list.append("\n".join(branch))
     return branch_list
 
