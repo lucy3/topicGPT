@@ -36,8 +36,8 @@ def topic_parser(root_topics, df, verbose):
     names = [node.name for node in root_topics.descendants]
     lvl1 = [node.name for node in root_topics.descendants if node.lvl == 1]
     all_topics = []
-    topic_pattern = regex.compile("\[\d\] [\w\s\-'\&]+")
-    pattern = regex.compile("^[^a-zA-Z]+|[^a-zA-Z]+$")
+    topic_pattern = regex.compile(r"\[\d\] [\w\s\-'\&]+")
+    pattern = regex.compile(r"^[^a-zA-Z]+|[^a-zA-Z]+$")
     topicgpt_gen = df.responses.tolist()
     for i in range(len(topicgpt_gen)):
         res = topicgpt_gen[i]
@@ -144,7 +144,7 @@ def correct_topics(
             doc = truncating(doc, deployment_name, max_doc_len)
 
         try:
-            msg = f"Previously, you assigned to this document to the following topics: {df.responses.tolist()[i]}.This time, you have to assign the document to a specific topic in the given hierarchy."
+            msg = f"Previously, you assigned to this document to the following topics: {df.responses.tolist()[i]}.This time, you have to assign the document to topics in the given hierarchy."
             prompt = correction_prompt.format(Document=doc, tree=seed_str, Message=msg)
             result = api_call(prompt, deployment_name, temperature, max_tokens, top_p)
             if verbose:
