@@ -1,4 +1,4 @@
-You will receive a document and a set of topics. Your task is to identify a generalizable topic within the document. If this topic is missing from the provided set, please add it. Otherwise, output an existing topic as identified in the document.
+You will receive a document and a set of topics. Your task is to identify generalizable topics within the document. If any relevant topics are missing from the provided set, please add them. Otherwise, output any existing topics identified in the document.
 
 [Topics]
 {Topics}
@@ -21,17 +21,17 @@ Your response:
 Love: Discusses romantic relationships, such as marriage.
 
 [Instructions]
-Step 1: Determine the topic mentioned in the document. 
-- The topic label must be as GENERALIZABLE as possible. It must not be document-specific.
-- The topic must reflect a SINGLE topic instead of a combination of topics.
-- A new topic must have a short general label and a topic description.  
+Step 1: Determine topics mentioned in the document. 
+- The topic labels must be as GENERALIZABLE as possible. They must not be document-specific.
+- The topics must reflect a SINGLE topic instead of a combination of topics.
+- Each new topic must have a short general label and a topic description.  
 Step 2: Perform ONE of the following operations: 
-1. If there are already a duplicate or relevant topic in the provided set of topics, output that topic and stop here. 
+1. If there are already duplicates or relevant topics in the provided set of topics, output those topics and stop here. 
 2. If the document contains no topic, return "None". 
-3. Otherwise, add a new topic to the set of topics. 
+3. Otherwise, output new, additional topic(s).
 
 [Document]
 {Document}
 
-Your response should be one line and ONLY contain a topic, written in the format "[Topic label]: [your reasoning]". 
-Your response:
+Your response should ONLY contain topics, written in the format "[Topic label]: [your reasoning]". 
+[Your response]

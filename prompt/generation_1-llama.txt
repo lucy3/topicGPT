@@ -33,5 +33,5 @@ Step 2: Perform ONE of the following operations:
 [Document]
 {Document}
 
-Your response should be one line and ONLY contain a topic, written in the format "[Topic label]: [your reasoning]". 
-Your response:
+Your response should ONLY contain a topic, written in the format "[Topic label]: [your reasoning]". 
+[Your response]
