@@ -95,7 +95,7 @@ def api_call(prompt, deployment_name, temperature, max_tokens, top_p, pipeline):
         if deployment_name == 'Llama-3.1-8B':
             text = outputs[0]["generated_text"][-1]['content']
         if deployment_name == 'Phi-3.5-mini': 
-            text = output[0]['generated_text']
+            text = outputs[0]['generated_text'][-1]['content']
 
         return text
     else:

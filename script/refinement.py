@@ -67,9 +67,9 @@ def merge_topics(
     """
     # Get new pairs to be merged
     topic_sent = [
-        f"[{topic.lvl}] {topic.name}: {topic.desc}" for topic in topics_root.descendants
+        f"{topic.name}: {topic.desc}" for topic in topics_root.descendants
     ]
-    labels = [f"[{topic.lvl}] {topic.name}" for topic in topics_root.descendants]
+    labels = [f"{topic.name}" for topic in topics_root.descendants]
     new_pairs, all_pairs = topic_pairs(
         topic_sent, all_pairs=[], threshold=0.5, num_pair=2
     )
@@ -77,10 +77,10 @@ def merge_topics(
     responses, removed, orig_new = [], [], {}
     # Pattern to match generations
     top_pattern = regex.compile(
-        "^\[(\d+)\]([\w\s\-',]+)(?:[:\(\)\w\s\/])*?:([\w\s,\.\-\/;']+) \(((?:\[\d+\] [\w\s\-',]+(?:, )*)+)\)$"
+        "^([\w\s\-',]+)(?:[:\(\)\w\s\/])*?:([\w\s,\.\-\/;']+) \(((?:[\w\s\-',]+(?:, )*)+)\)$"
     )
     # Pattern to match original topics being merged
-    orig_pattern = regex.compile("(\[(?:\d+)\](?:[\w\s\-',]+)),?")
+    orig_pattern = regex.compile("((?:[\w\s\-',]+)),?")
 
     while len(new_pairs) > 1:
         # Format topics to be merged in the prmpt
@@ -106,9 +106,9 @@ def merge_topics(
                 match = regex.match(regex.compile(top_pattern), merge.strip())
                 if match:
                     lvl, name, desc = (
-                        int(match.group(1)),
+                        1,
+                        match.group(1).strip(),
                         match.group(2).strip(),
-                        match.group(3).strip(),
                     )
                     origs = [
                         t.strip(", ")
@@ -119,8 +119,8 @@ def merge_topics(
                     if len(origs) > 1:
                         for node in topics_root.descendants:
                             if (
-                                f"[{node.lvl}] {node.name}" in origs
-                                and f"[{node.lvl}] {node.name}" != f"[{lvl}] {name}"
+                                f"{node.name}" in origs
+                                and f"{node.name}" != f"{name}"
                             ):
                                 orig_new[
                                     f"[{node.lvl}] {node.name}:"
