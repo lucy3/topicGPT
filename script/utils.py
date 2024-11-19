@@ -48,7 +48,7 @@ def get_local_pipelines(deployment_name):
         
     return pipeline
 
-# @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
+@retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
 def api_call(prompt, deployment_name, temperature, max_tokens, top_p, pipeline):
     """
     Call API (OpenAI, Azure, Perplexity) and return response
@@ -70,6 +70,7 @@ def api_call(prompt, deployment_name, temperature, max_tokens, top_p, pipeline):
                 {"role": "user", "content": prompt},
             ],
         )
+        print(response)
         return response.choices[0].message.content
     elif deployment_name in ['Phi-3.5-mini', 'Llama-3.1-8B']:
         assert pipeline
