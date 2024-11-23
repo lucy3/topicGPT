@@ -97,7 +97,7 @@ def generate_topics(
     max_tokens,
     top_p,
     verbose,
-    early_stop=100,
+    early_stop=1000,
 ):
     """
     Generate topics from documents using LLMs

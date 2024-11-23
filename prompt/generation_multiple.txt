@@ -34,4 +34,4 @@ Step 2: Perform ONE of the following operations:
 {Document}
 
 Your response should ONLY contain topics, written in the format "[Topic label]: [your reasoning]". 
-[Your response]
+Your response:
