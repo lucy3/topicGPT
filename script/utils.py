@@ -43,12 +43,22 @@ def get_local_pipelines(deployment_name):
             device_map="auto",
         )
 
+    if deployment_name == 'gemma-2-2b': 
+        model_id = "/data/models/gemma/models--google--gemma-2-2b-it/snapshots/299a8560bedf22ed1c72a8a11e7dce4a7f9f51f8"
+        model_kwargs = {'torch_dtype': torch.bfloat16}
+        pipeline = transformers.pipeline(
+            "text-generation",
+            model=model_id,
+            model_kwargs=model_kwargs,
+            device_map="auto",
+        )
+
     if deployment_name == 'gpt-4o-mini': 
         pipeline = None
         
     return pipeline
 
-@retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
+#@retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
 def api_call(prompt, deployment_name, temperature, max_tokens, top_p, pipeline):
     """
     Call API (OpenAI, Azure, Perplexity) and return response
@@ -72,13 +82,18 @@ def api_call(prompt, deployment_name, temperature, max_tokens, top_p, pipeline):
         )
         print(response)
         return response.choices[0].message.content
-    elif deployment_name in ['Phi-3.5-mini', 'Llama-3.1-8B']:
+    elif deployment_name in ['Phi-3.5-mini', 'Llama-3.1-8B', 'gemma-2-2b']:
         assert pipeline
 
-        messages = [
-            {"role": "system", "content": ""},
-            {"role": "user", "content": prompt},
-        ]
+        if deployment_name in ['Phi-3.5-mini', 'Llama-3.1-8B']: 
+            messages = [
+                {"role": "system", "content": ""},
+                {"role": "user", "content": prompt},
+            ]
+        else: 
+            messages = [
+                {"role": "user", "content": prompt},
+            ]
         if temperature == 0: 
             outputs = pipeline(
                 messages,
@@ -96,6 +111,8 @@ def api_call(prompt, deployment_name, temperature, max_tokens, top_p, pipeline):
         if deployment_name == 'Llama-3.1-8B':
             text = outputs[0]["generated_text"][-1]['content']
         if deployment_name == 'Phi-3.5-mini': 
+            text = outputs[0]['generated_text'][-1]['content']
+        if deployment_name == 'gemma-2-2b': 
             text = outputs[0]['generated_text'][-1]['content']
 
         return text
