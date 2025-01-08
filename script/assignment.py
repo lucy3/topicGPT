@@ -135,7 +135,7 @@ def main():
     parser.add_argument(
         "--deployment_name",
         type=str,
-        help="model ('Phi-3.5-mini', 'Llama-3.1-8B', 'gpt-4o-mini')",
+        help="model ('Phi-3.5-mini', 'gemma-2-2b', 'Llama-3.1-8B', 'gpt-4o-mini')",
     )
     parser.add_argument(
         "--max_tokens", type=int, default=500, help="max tokens to generate"

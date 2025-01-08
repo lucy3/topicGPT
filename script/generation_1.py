@@ -132,6 +132,8 @@ def generate_topics(
             topics = response.split("\n")
             for t in topics:
                 t = t.strip()
+                if deployment_name == 'gemma-2-2b' and t.startswith('[') and ']: ' in t: # catch gemma instruction following error
+                    t = t[1:].replace(']: ', ': ')
                 if regex.match(topic_format, t):
                     groups = regex.match(topic_format, t)
                     name, desc = (
