@@ -43,7 +43,7 @@ def get_local_pipelines(deployment_name):
             device_map="auto",
         )
 
-    if deployment_name == 'gpt-4o-mini': 
+    if deployment_name.startswith('gpt-4o'): 
         pipeline = None
         
     return pipeline
@@ -59,7 +59,7 @@ def api_call(prompt, deployment_name, temperature, max_tokens, top_p, pipeline):
     - top_p: top p parameter
     """
     time.sleep(5)  # Change to avoid rate limit
-    if deployment_name in ["gpt-4o-mini"]:
+    if deployment_name in ["gpt-4o-mini", "gpt-4o"]:
         response = client.chat.completions.create(
             model=deployment_name,
             temperature=float(temperature),
